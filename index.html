@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de la Vida - Conway</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: white;
+            text-align: center;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+        
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .play-btn { background-color: #4CAF50; color: white; }
+        .pause-btn { background-color: #ff9800; color: white; }
+        .reset-btn { background-color: #f44336; color: white; }
+        .next-btn { background-color: #2196F3; color: white; }
+        .speed-btn { background-color: #9C27B0; color: white; }
+        .zoom-btn { background-color: #607D8B; color: white; }
+        .help-btn { background-color: #FFC107; color: black; }
+        
+        button:hover {
+            opacity: 0.8;
+            transform: translateY(-2px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .game-info {
+            margin: 15px 0;
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            font-size: 14px;
+        }
+        
+        canvas {
+            border: 2px solid #333;
+            background-color: #000;
+            margin: 10px 0;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #2d2d2d;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .close-btn {
+            background-color: #f44336;
+            color: white;
+            margin-top: 20px;
+        }
+        
+        .rules {
+            text-align: left;
+            line-height: 1.6;
+        }
+        
+        .pattern-buttons {
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 Juego de la Vida de Conway</h1>
+        
+        <div class="controls">
+            <button id="playBtn" class="play-btn">▶ PLAY</button>
+            <button id="pauseBtn" class="pause-btn">⏸ PAUSE</button>
+            <button id="nextBtn" class="next-btn">⏭ NEXT</button>
+            <button id="resetBtn" class="reset-btn">🔄 RESET</button>
+            <button id="speedUpBtn" class="speed-btn">⚡ SPEED +</button>
+            <button id="speedDownBtn" class="speed-btn">🐢 SPEED -</button>
+            <button id="zoomInBtn" class="zoom-btn">🔍 ZOOM +</button>
+            <button id="zoomOutBtn" class="zoom-btn">🔎 ZOOM -</button>
+            <button id="helpBtn" class="help-btn">❓ HELP</button>
+        </div>
+        
+        <div class="pattern-buttons">
+            <button id="gliderBtn" class="speed-btn">✈ Add Glider</button>
+            <button id="blinkerBtn" class="speed-btn">🔴 Add Blinker</button>
+            <button id="spaceshipBtn" class="speed-btn">🚀 Add Spaceship</button>
+            <button id="randomBtn" class="speed-btn">🎲 Random</button>
+        </div>
+        
+        <div class="game-info">
+            <div>Status: <span id="status">PAUSED</span></div>
+            <div>Speed: <span id="speed">5</span>/10</div>
+            <div>Zoom: <span id="zoom">100</span>%</div>
+            <div>Generation: <span id="generation">0</span></div>
+        </div>
+        
+        <canvas id="gameCanvas"></canvas>
+    </div>
+    
+    <!-- Modal de ayuda -->
+    <div id="helpModal" class="modal">
+        <div class="modal-content">
+            <h2>📚 Juego de la Vida - Reglas</h2>
+            <div class="rules">
+                <h3>Reglas del Juego:</h3>
+                <ul>
+                    <li>🔹 <strong>Nacimiento:</strong> Una célula muerta con exactamente 3 vecinos vivos nace</li>
+                    <li>🔹 <strong>Supervivencia:</strong> Una célula viva con 2 o 3 vecinos vivos sobrevive</li>
+                    <li>🔹 <strong>Muerte por soledad:</strong> Una célula viva con menos de 2 vecinos muere</li>
+                    <li>🔹 <strong>Muerte por sobrepoblación:</strong> Una célula viva con más de 3 vecinos muere</li>
+                </ul>
+                
+                <h3>Controles:</h3>
+                <ul>
+                    <li>🖱️ <strong>Clic izquierdo:</strong> Añadir/eliminar células</li>
+                    <li>▶ <strong>PLAY:</strong> Iniciar simulación</li>
+                    <li>⏸ <strong>PAUSE:</strong> Pausar simulación</li>
+                    <li>⏭ <strong>NEXT:</strong> Avanzar un paso</li>
+                    <li>🔄 <strong>RESET:</strong> Limpiar la grilla</li>
+                    <li>⚡ <strong>SPEED +-:</strong> Controlar velocidad</li>
+                    <li>🔍 <strong>ZOOM +-:</strong> Acercar/alejar</li>
+                </ul>
+                
+                <h3>Patrones:</h3>
+                <ul>
+                    <li>✈ <strong>Glider:</strong> Patrón que se mueve diagonalmente</li>
+                    <li>🔴 <strong>Blinker:</strong> Patrón que oscila</li>
+                    <li>🚀 <strong>Spaceship:</strong> Nave que se mueve</li>
+                    <li>🎲 <strong>Random:</strong> Patrón aleatorio</li>
+                </ul>
+            </div>
+            <button class="close-btn" id="closeHelp">Cerrar</button>
+        </div>
+    </div>
+
+    <script>
+        class GameOfLife {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                
+                // Configuración inicial
+                this.cellSize = 12;
+                this.gridWidth = 60;
+                this.gridHeight = 40;
+                this.zoom = 1.0;
+                
+                // Estado del juego
+                this.grid = this.createGrid();
+                this.isRunning = false;
+                this.speed = 5;
+                this.generation = 0;
+                this.animationId = null;
+                
+                // Configurar canvas
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+                
+                // Inicializar eventos
+                this.initializeEvents();
+                
+                // Dibujar estado inicial
+                this.draw();
+                
+                // Añadir algunos patrones iniciales
+                this.addGlider(5, 5);
+                this.addBlinker(15, 15);
+            }
+            
+            createGrid() {
+                return Array(this.gridHeight).fill().map(() => Array(this.gridWidth).fill(0));
+            }
+            
+            resizeCanvas() {
+                this.canvas.width = this.gridWidth * this.cellSize * this.zoom;
+                this.canvas.height = this.gridHeight * this.cellSize * this.zoom;
+                this.draw();
+            }
+            
+            initializeEvents() {
+                // Botones de control
+                document.getElementById('playBtn').addEventListener('click', () => this.play());
+                document.getElementById('pauseBtn').addEventListener('click', () => this.pause());
+                document.getElementById('nextBtn').addEventListener('click', () => this.next());
+                document.getElementById('resetBtn').addEventListener('click', () => this.reset());
+                document.getElementById('speedUpBtn').addEventListener('click', () => this.changeSpeed(1));
+                document.getElementById('speedDownBtn').addEventListener('click', () => this.changeSpeed(-1));
+                document.getElementById('zoomInBtn').addEventListener('click', () => this.changeZoom(0.1));
+                document.getElementById('zoomOutBtn').addEventListener('click', () => this.changeZoom(-0.1));
+                document.getElementById('helpBtn').addEventListener('click', () => this.showHelp());
+                document.getElementById('closeHelp').addEventListener('click', () => this.hideHelp());
+                
+                // Botones de patrones
+                document.getElementById('gliderBtn').addEventListener('click', () => this.addGlider(10, 10));
+                document.getElementById('blinkerBtn').addEventListener('click', () => this.addBlinker(20, 20));
+                document.getElementById('spaceshipBtn').addEventListener('click', () => this.addSpaceship(30, 10));
+                document.getElementById('randomBtn').addEventListener('click', () => this.addRandom());
+                
+                // Interacción con el canvas
+                this.canvas.addEventListener('click', (e) => this.handleCanvasClick(e));
+            }
+            
+            handleCanvasClick(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const x = Math.floor((e.clientX - rect.left) / (this.cellSize * this.zoom));
+                const y = Math.floor((e.clientY - rect.top) / (this.cellSize * this.zoom));
+                
+                if (x >= 0 && x < this.gridWidth && y >= 0 && y < this.gridHeight) {
+                    this.grid[y][x] = this.grid[y][x] ? 0 : 1;
+                    this.draw();
+                }
+            }
+            
+            countNeighbors(x, y) {
+                let count = 0;
+                for (let i = -1; i <= 1; i++) {
+                    for (let j = -1; j <= 1; j++) {
+                        if (i === 0 && j === 0) continue;
+                        const nx = x + i;
+                        const ny = y + j;
+                        if (nx >= 0 && nx < this.gridWidth && ny >= 0 && ny < this.gridHeight) {
+                            count += this.grid[ny][nx];
+                        }
+                    }
+                }
+                return count;
+            }
+            
+            update() {
+                const newGrid = this.createGrid();
+                
+                for (let y = 0; y < this.gridHeight; y++) {
+                    for (let x = 0; x < this.gridWidth; x++) {
+                        const neighbors = this.countNeighbors(x, y);
+                        
+                        if (this.grid[y][x] === 1) {
+                            // Célula viva
+                            newGrid[y][x] = (neighbors === 2 || neighbors === 3) ? 1 : 0;
+                        } else {
+                            // Célula muerta
+                            newGrid[y][x] = (neighbors === 3) ? 1 : 0;
+                        }
+                    }
+                }
+                
+                this.grid = newGrid;
+                this.generation++;
+                this.updateUI();
+            }
+            
+            draw() {
+                this.ctx.fillStyle = '#000';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                const size = this.cellSize * this.zoom;
+                
+                // Dibujar células vivas
+                this.ctx.fillStyle = '#4CAF50';
+                for (let y = 0; y < this.gridHeight; y++) {
+                    for (let x = 0; x < this.gridWidth; x++) {
+                        if (this.grid[y][x] === 1) {
+                            this.ctx.fillRect(x * size, y * size, size - 1, size - 1);
+                        }
+                    }
+                }
+                
+                // Dibujar grid (solo si el zoom es suficiente)
+                if (this.zoom > 0.5) {
+                    this.ctx.strokeStyle = '#333';
+                    this.ctx.lineWidth = 0.5;
+                    
+                    for (let x = 0; x <= this.gridWidth; x++) {
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(x * size, 0);
+                        this.ctx.lineTo(x * size, this.canvas.height);
+                        this.ctx.stroke();
+                    }
+                    
+                    for (let y = 0; y <= this.gridHeight; y++) {
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(0, y * size);
+                        this.ctx.lineTo(this.canvas.width, y * size);
+                        this.ctx.stroke();
+                    }
+                }
+            }
+            
+            play() {
+                if (!this.isRunning) {
+                    this.isRunning = true;
+                    this.animate();
+                    this.updateUI();
+                }
+            }
+            
+            pause() {
+                this.isRunning = false;
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                    this.animationId = null;
+                }
+                this.updateUI();
+            }
+            
+            next() {
+                if (!this.isRunning) {
+                    this.update();
+                    this.draw();
+                }
+            }
+            
+            reset() {
+                this.pause();
+                this.grid = this.createGrid();
+                this.generation = 0;
+                this.draw();
+                this.updateUI();
+            }
+            
+            animate() {
+                if (!this.isRunning) return;
+                
+                this.update();
+                this.draw();
+                
+                // Control de velocidad (más velocidad = menos delay)
+                const delay = Math.max(50, 500 - (this.speed * 45));
+                
+                this.animationId = setTimeout(() => {
+                    this.animationId = requestAnimationFrame(() => this.animate());
+                }, delay);
+            }
+            
+            changeSpeed(delta) {
+                this.speed = Math.max(1, Math.min(10, this.speed + delta));
+                this.updateUI();
+            }
+            
+            changeZoom(delta) {
+                this.zoom = Math.max(0.3, Math.min(2.0, this.zoom + delta));
+                this.resizeCanvas();
+                this.updateUI();
+            }
+            
+            showHelp() {
+                document.getElementById('helpModal').style.display = 'block';
+            }
+            
+            hideHelp() {
+                document.getElementById('helpModal').style.display = 'none';
+            }
+            
+            updateUI() {
+                document.getElementById('status').textContent = this.isRunning ? 'RUNNING' : 'PAUSED';
+                document.getElementById('speed').textContent = this.speed;
+                document.getElementById('zoom').textContent = Math.round(this.zoom * 100);
+                document.getElementById('generation').textContent = this.generation;
+            }
+            
+            // Patrones predefinidos
+            addGlider(x, y) {
+                const pattern = [
+                    [0, 1, 0],
+                    [0, 0, 1],
+                    [1, 1, 1]
+                ];
+                this.addPattern(x, y, pattern);
+            }
+            
+            addBlinker(x, y) {
+                const pattern = [[1, 1, 1]];
+                this.addPattern(x, y, pattern);
+            }
+            
+            addSpaceship(x, y) {
+                const pattern = [
+                    [0, 1, 1, 1, 1],
+                    [1, 0, 0, 0, 1],
+                    [0, 0, 0, 0, 1],
+                    [1, 0, 0, 1, 0]
+                ];
+                this.addPattern(x, y, pattern);
+            }
+            
+            addRandom() {
+                for (let y = 0; y < this.gridHeight; y++) {
+                    for (let x = 0; x < this.gridWidth; x++) {
+                        this.grid[y][x] = Math.random() > 0.7 ? 1 : 0;
+                    }
+                }
+                this.draw();
+            }
+            
+            addPattern(x, y, pattern) {
+                for (let py = 0; py < pattern.length; py++) {
+                    for (let px = 0; px < pattern[py].length; px++) {
+                        const gx = x + px;
+                        const gy = y + py;
+                        if (gx < this.gridWidth && gy < this.gridHeight) {
+                            this.grid[gy][gx] = pattern[py][px];
+                        }
+                    }
+                }
+                this.draw();
+            }
+        }
+        
+        // Inicializar el juego cuando se carga la página
+        window.addEventListener('load', () => {
+            new GameOfLife();
+        });
+    </script>
+</body>
+</html>
