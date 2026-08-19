@@ -1,0 +1,22 @@
+# Entornos de Python
+.venv/
+.venv_face/
+venv/
+env/
+
+# Cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Empaquetado (PyInstaller)
+build/
+dist/
+*.spec
+
+# Paquetes para Release (no van en el repo)
+_ENTREGA_GITHUB/
+
+# Sistema
+Thumbs.db
+.DS_Store
